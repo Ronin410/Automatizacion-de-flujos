@@ -1,0 +1,153 @@
+{
+  "name": "[PREMIUM] 5 - Integración Custom API (enriquecimiento)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "enriquecer-lead-premium",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "aba1ba10-000a-4000-8000-000000000001",
+      "name": "Webhook - Solicitar Enriquecimiento",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        260
+      ],
+      "webhookId": "enriquecer-lead-premium"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.CUSTOM_API_URL }}/lookup",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $json.body.email }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $env.CUSTOM_API_KEY }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "aba1ba10-000a-4000-8000-000000000002",
+      "name": "Llamar API Externa (Enriquecimiento)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        260
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE leads\nSET empresa = COALESCE(NULLIF($1, ''), empresa)\nWHERE email = $2;\nINSERT INTO seguimiento (lead_id, tipo, nota)\nSELECT id, 'enriquecimiento', $3 FROM leads WHERE email = $2;",
+        "options": {
+          "queryReplacement": "={{ [ $json.empresa || '', $('Webhook - Solicitar Enriquecimiento').item.json.body.email, JSON.stringify($json) ] }}"
+        }
+      },
+      "id": "aba1ba10-000a-4000-8000-000000000003",
+      "name": "Guardar Datos Enriquecidos",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        420,
+        160
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres - Cliente"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_INTERNAL_URL }}/webhook/error-alert-premium",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"flujo\": \"5 - Integración Custom API\", \"nodo\": \"Llamar API Externa (Enriquecimiento)\", \"error\": $json.error?.message || 'Desconocido', \"datos\": $('Webhook - Solicitar Enriquecimiento').item.json.body } }}",
+        "options": {}
+      },
+      "id": "aba1ba10-000a-4000-8000-000000000004",
+      "name": "Reportar Error a Flujo 6",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        420,
+        360
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook - Solicitar Enriquecimiento": {
+      "main": [
+        [
+          {
+            "node": "Llamar API Externa (Enriquecimiento)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llamar API Externa (Enriquecimiento)": {
+      "main": [
+        [
+          {
+            "node": "Guardar Datos Enriquecidos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reportar Error a Flujo 6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "",
+  "meta": {
+    "templateNote": "Flujo 5 de 6 del nivel Premium — 'capa de integración custom' del alcance Premium: un nodo HTTP Request bien configurado (headers, query params, auth, timeout, reintentos) para conectar cualquier API que n8n no soporte nativamente. Reemplazar CUSTOM_API_URL/CUSTOM_API_KEY y la forma del request por la API real del cliente (ej. un servicio de enriquecimiento de datos, validación fiscal, scoring crediticio, etc.). No se necesita programar un nodo custom en Node.js para esto — solo para casos con auth muy no estándar (ver custom-nodes/README.md)."
+  },
+  "tags": [
+    "premium",
+    "integracion-custom",
+    "postgres"
+  ]
+}

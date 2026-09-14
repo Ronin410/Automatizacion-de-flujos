@@ -1,0 +1,330 @@
+{
+  "name": "[PREMIUM] 1 - Captura de Datos",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "captura-premium",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6d6d6d60-0006-4000-8000-000000000001",
+      "name": "Webhook - Recibir Lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        260
+      ],
+      "webhookId": "captura-premium"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "nombre",
+              "type": "string",
+              "value": "={{ $json.body.nombre?.trim() || '' }}"
+            },
+            {
+              "id": "e2",
+              "name": "email",
+              "type": "string",
+              "value": "={{ ($json.body.email || '').trim().toLowerCase() }}"
+            },
+            {
+              "id": "e3",
+              "name": "telefono",
+              "type": "string",
+              "value": "={{ $json.body.telefono?.trim() || '' }}"
+            },
+            {
+              "id": "e4",
+              "name": "empresa",
+              "type": "string",
+              "value": "={{ $json.body.empresa?.trim() || '' }}"
+            },
+            {
+              "id": "e5",
+              "name": "mensaje",
+              "type": "string",
+              "value": "={{ $json.body.mensaje?.trim() || '' }}"
+            },
+            {
+              "id": "e6",
+              "name": "origen",
+              "type": "string",
+              "value": "={{ $json.body.origen || 'sitio-web' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6d6d6d60-0006-4000-8000-000000000002",
+      "name": "Normalizar Datos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "f1",
+              "leftValue": "={{ $json.nombre }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "f2",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6d6d6d60-0006-4000-8000-000000000003",
+      "name": "Validar Datos",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        420,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO leads (nombre, email, telefono, empresa, mensaje, origen)\nVALUES ($1, $2, $3, $4, $5, $6)\nON CONFLICT (email) DO UPDATE\n  SET interacciones = leads.interacciones + 1\nRETURNING id, estado, interacciones;",
+        "options": {
+          "queryReplacement": "={{ [$json.nombre, $json.email, $json.telefono, $json.empresa, $json.mensaje, $json.origen] }}"
+        }
+      },
+      "id": "6d6d6d60-0006-4000-8000-000000000004",
+      "name": "Insertar Lead en BD",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        160
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_ME",
+          "name": "Postgres - Cliente"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_INTERNAL_URL }}/webhook/procesamiento-premium",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"lead_id\": $json.id, \"nombre\": $('Normalizar Datos').item.json.nombre, \"email\": $('Normalizar Datos').item.json.email, \"telefono\": $('Normalizar Datos').item.json.telefono, \"empresa\": $('Normalizar Datos').item.json.empresa, \"mensaje\": $('Normalizar Datos').item.json.mensaje } }}",
+        "options": {}
+      },
+      "id": "6d6d6d60-0006-4000-8000-000000000005",
+      "name": "Disparar Flujo 2 (Procesamiento)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        60
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true, \"mensaje\": \"Lead recibido.\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "6d6d6d60-0006-4000-8000-000000000006",
+      "name": "Responder OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1080,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_INTERNAL_URL }}/webhook/error-alert-premium",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"flujo\": \"1 - Captura de Datos\", \"nodo\": \"Insertar Lead en BD\", \"error\": $json.error?.message || 'Desconocido', \"datos\": $('Normalizar Datos').item.json } }}",
+        "options": {}
+      },
+      "id": "6d6d6d60-0006-4000-8000-000000000007",
+      "name": "Reportar Error a Flujo 6",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        320
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": false, \"mensaje\": \"Ocurrió un error, ya fue reportado.\" } }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "6d6d6d60-0006-4000-8000-000000000008",
+      "name": "Responder Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1080,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": false, \"mensaje\": \"Faltan datos requeridos (nombre o email válido).\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "6d6d6d60-0006-4000-8000-000000000009",
+      "name": "Responder Datos Inválidos",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        420,
+        460
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Recibir Lead": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Datos": {
+      "main": [
+        [
+          {
+            "node": "Validar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Datos": {
+      "main": [
+        [
+          {
+            "node": "Insertar Lead en BD",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder Datos Inválidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insertar Lead en BD": {
+      "main": [
+        [
+          {
+            "node": "Disparar Flujo 2 (Procesamiento)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reportar Error a Flujo 6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Disparar Flujo 2 (Procesamiento)": {
+      "main": [
+        [
+          {
+            "node": "Responder OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reportar Error a Flujo 6": {
+      "main": [
+        [
+          {
+            "node": "Responder Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "",
+  "meta": {
+    "templateNote": "Flujo 1 de 6 del nivel Premium — 'captura de datos' (arquitectura modular: captura / procesamiento / notificación-acción). Guarda el lead en PostgreSQL (upsert por email) y dispara el Flujo 2. Requiere el esquema de db/schema.sql aplicado."
+  },
+  "tags": [
+    "premium",
+    "captura",
+    "postgres"
+  ]
+}

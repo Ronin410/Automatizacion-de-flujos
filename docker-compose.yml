@@ -1,11 +1,14 @@
 # Compose de conveniencia para levantar el Dockerfile localmente con
 # persistencia de datos entre reinicios y las variables de .env cargadas.
+# Incluye PostgreSQL (necesario para probar los flujos de flows/premium/).
 #
 # Uso: docker compose up --build -d
 services:
   n8n:
     build: .
-    container_name: automatizacion-n8n-basic
+    container_name: automatizacion-n8n
+    depends_on:
+      - postgres
     ports:
       - "5678:5678"
     env_file:
@@ -18,6 +21,9 @@ services:
       - N8N_PROTOCOL=http
       - WEBHOOK_URL=http://localhost:5678/
       - GENERIC_TIMEZONE=UTC
+      # Para el nivel Premium: si no defines DATABASE_URL propia en .env,
+      # este valor apunta al Postgres local de este mismo compose.
+      - DATABASE_URL=${DATABASE_URL:-postgres://n8n:n8n@postgres:5432/automatizacion}
     volumes:
       # Persiste workflows, credenciales y la DB interna de n8n entre reinicios.
       - n8n_data:/home/node/.n8n
@@ -26,5 +32,22 @@ services:
       - ./flows:/flows:ro
     restart: unless-stopped
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: automatizacion-postgres
+    environment:
+      - POSTGRES_USER=n8n
+      - POSTGRES_PASSWORD=n8n
+      - POSTGRES_DB=automatizacion
+    ports:
+      # Expuesto por si quieres conectarte con psql/DBeaver desde el host.
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Aplica automáticamente db/schema.sql la primera vez que se crea el volumen.
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    restart: unless-stopped
+
 volumes:
   n8n_data:
+  postgres_data:

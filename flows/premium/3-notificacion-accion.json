@@ -1,0 +1,226 @@
+{
+  "name": "[PREMIUM] 3 - Notificación y Acción",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notificacion-accion-premium",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "8f8f8f80-0008-4000-8000-000000000001",
+      "name": "Webhook - Interno (desde Flujo 2)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        260
+      ],
+      "webhookId": "notificacion-accion-premium"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.WHATSAPP_PHONE_ID }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"messaging_product\": \"whatsapp\", \"to\": $env.WHATSAPP_OPERATOR_NUMBER, \"type\": \"text\", \"text\": { \"body\": \"Lead calificado (score \" + $json.body.score + \"): \" + $json.body.nombre + \" - \" + $json.body.empresa + \". \" + $json.body.email } } }}",
+        "options": {}
+      },
+      "id": "8f8f8f80-0008-4000-8000-000000000002",
+      "name": "Notificar al Operador (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        160
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "WhatsApp Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.ALERTS_FROM_EMAIL }}",
+        "toEmail": "={{ $json.body.email }}",
+        "subject": "Gracias por contactarnos",
+        "emailFormat": "text",
+        "text": "=Hola {{ $json.body.nombre }},\n\nRecibimos tu mensaje y un asesor se pondrá en contacto contigo pronto.\n\nSaludos.",
+        "options": {}
+      },
+      "id": "8f8f8f80-0008-4000-8000-000000000003",
+      "name": "Confirmar al Cliente (Email)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        420,
+        260
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_ME",
+          "name": "SMTP - Alertas"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CRM_API_URL }}/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.CRM_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"nombre\": $json.body.nombre, \"email\": $json.body.email, \"telefono\": $json.body.telefono, \"empresa\": $json.body.empresa, \"score\": $json.body.score } }}",
+        "options": {}
+      },
+      "id": "8f8f8f80-0008-4000-8000-000000000004",
+      "name": "Sincronizar con CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        360
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "CRM - Cliente"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_INTERNAL_URL }}/webhook/error-alert-premium",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"flujo\": \"3 - Notificación y Acción\", \"nodo\": \"ver 'error' recibido\", \"error\": $json.error?.message || 'Desconocido', \"datos\": $('Webhook - Interno (desde Flujo 2)').item.json.body } }}",
+        "options": {}
+      },
+      "id": "8f8f8f80-0008-4000-8000-000000000005",
+      "name": "Reportar Error a Flujo 6",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        60
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook - Interno (desde Flujo 2)": {
+      "main": [
+        [
+          {
+            "node": "Notificar al Operador (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar al Operador (WhatsApp)": {
+      "main": [
+        [
+          {
+            "node": "Confirmar al Cliente (Email)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reportar Error a Flujo 6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmar al Cliente (Email)": {
+      "main": [
+        [
+          {
+            "node": "Sincronizar con CRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reportar Error a Flujo 6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sincronizar con CRM": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Reportar Error a Flujo 6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "",
+  "meta": {
+    "templateNote": "Flujo 3 de 6 del nivel Premium — capa de 'notificación/acción'. Lo dispara el Flujo 2. Notifica al operador, confirma al cliente y sincroniza con el CRM; cualquier fallo se reporta al Flujo 6 sin detener el resto de las acciones."
+  },
+  "tags": [
+    "premium",
+    "notificaciones",
+    "crm"
+  ]
+}
