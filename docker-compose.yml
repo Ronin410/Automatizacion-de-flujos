@@ -1,0 +1,30 @@
+# Compose de conveniencia para levantar el Dockerfile localmente con
+# persistencia de datos entre reinicios y las variables de .env cargadas.
+#
+# Uso: docker compose up --build -d
+services:
+  n8n:
+    build: .
+    container_name: automatizacion-n8n-basic
+    ports:
+      - "5678:5678"
+    env_file:
+      # Copia .env.example a .env y completa lo que quieras probar
+      # (puede quedar vacío para solo explorar la interfaz).
+      - .env
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=UTC
+    volumes:
+      # Persiste workflows, credenciales y la DB interna de n8n entre reinicios.
+      - n8n_data:/home/node/.n8n
+      # Monta el repo de flujos también como volumen, por si se editan los
+      # JSON en el host y se quieren re-importar sin reconstruir la imagen.
+      - ./flows:/flows:ro
+    restart: unless-stopped
+
+volumes:
+  n8n_data:

@@ -50,6 +50,13 @@ alcance de este nivel. Ver `flows/basic/README.md` para el detalle de cada nodo 
 Para la entrega al cliente, usa `templates/docs-basico.md` como plantilla de la documentación de
 1 página (qué hace el flujo y cómo revisarlo).
 
+## Probar localmente con Docker
+
+Hay un `Dockerfile` (imagen oficial de n8n) y un `docker-compose.yml` para levantar una instancia
+local. **Importante:** levantar el contenedor tal cual no importa los flujos automáticamente — la
+instancia arranca vacía. Ver `INSTRUCCIONES_LOCAL.md` para el paso a paso completo (incluye qué
+verás exactamente en cada paso y cómo importar y probar `flows/basic/`).
+
 ## Niveles Standard y Premium
 
 Aún no scaffoldeados — quedan carpetas placeholder (`flows/standard/`, `flows/premium/`,
