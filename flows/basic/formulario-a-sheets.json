@@ -1,0 +1,324 @@
+{
+  "name": "[BASIC] Formulario → Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-form",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1f1a1a10-0001-4000-8000-000000000001",
+      "name": "Webhook - Recibir Formulario",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        260
+      ],
+      "webhookId": "lead-form-basic"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "nombre",
+              "type": "string",
+              "value": "={{ $json.body.nombre?.trim() || '' }}"
+            },
+            {
+              "id": "a2",
+              "name": "email",
+              "type": "string",
+              "value": "={{ ($json.body.email || '').trim().toLowerCase() }}"
+            },
+            {
+              "id": "a3",
+              "name": "telefono",
+              "type": "string",
+              "value": "={{ $json.body.telefono?.trim() || '' }}"
+            },
+            {
+              "id": "a4",
+              "name": "mensaje",
+              "type": "string",
+              "value": "={{ $json.body.mensaje?.trim() || '' }}"
+            },
+            {
+              "id": "a5",
+              "name": "fecha_recepcion",
+              "type": "string",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "id": "a6",
+              "name": "origen",
+              "type": "string",
+              "value": "={{ $json.body.origen || 'sitio-web' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1f1a1a10-0001-4000-8000-000000000002",
+      "name": "Normalizar Datos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.nombre }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1f1a1a10-0001-4000-8000-000000000003",
+      "name": "Validar Datos",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        420,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEETS_DOCUMENT_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Nombre": "={{ $json.nombre }}",
+            "Email": "={{ $json.email }}",
+            "Telefono": "={{ $json.telefono }}",
+            "Mensaje": "={{ $json.mensaje }}",
+            "Fecha": "={{ $json.fecha_recepcion }}",
+            "Origen": "={{ $json.origen }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "1f1a1a10-0001-4000-8000-000000000004",
+      "name": "Guardar en Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        640,
+        160
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets - Cliente"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true, \"mensaje\": \"Gracias, recibimos tu información.\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "1f1a1a10-0001-4000-8000-000000000005",
+      "name": "Responder OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        860,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.ALERTS_FROM_EMAIL }}",
+        "toEmail": "={{ $env.ALERTS_TO_EMAIL }}",
+        "subject": "⚠️ Fallo al guardar lead en Sheets",
+        "emailFormat": "text",
+        "text": "=No se pudo guardar un lead en Google Sheets tras 3 reintentos.\n\nDatos recibidos:\nNombre: {{ $('Normalizar Datos').item.json.nombre }}\nEmail: {{ $('Normalizar Datos').item.json.email }}\nMensaje: {{ $('Normalizar Datos').item.json.mensaje }}\nFecha: {{ $('Normalizar Datos').item.json.fecha_recepcion }}\n\nError: {{ $json.error?.message || 'Desconocido' }}\n\nAcción sugerida: revisar credenciales de Google Sheets y agregar el lead manualmente.",
+        "options": {}
+      },
+      "id": "1f1a1a10-0001-4000-8000-000000000006",
+      "name": "Notificar Fallo (Email)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        860,
+        260
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_ME",
+          "name": "SMTP - Alertas"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": false, \"mensaje\": \"Ocurrió un error, ya fue reportado. Intenta de nuevo más tarde.\" } }}",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "id": "1f1a1a10-0001-4000-8000-000000000007",
+      "name": "Responder Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1080,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": false, \"mensaje\": \"Faltan datos requeridos (nombre o email válido).\" } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "1f1a1a10-0001-4000-8000-000000000008",
+      "name": "Responder Datos Inválidos",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        420,
+        460
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Recibir Formulario": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar Datos": {
+      "main": [
+        [
+          {
+            "node": "Validar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar Datos": {
+      "main": [
+        [
+          {
+            "node": "Guardar en Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder Datos Inválidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar en Sheets": {
+      "main": [
+        [
+          {
+            "node": "Responder OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Fallo (Email)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar Fallo (Email)": {
+      "main": [
+        [
+          {
+            "node": "Responder Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "",
+  "meta": {
+    "templateNote": "Flujo base nivel Basic — adaptar credenciales, ID de Sheet y campos del formulario al cliente real."
+  },
+  "tags": [
+    "basic",
+    "leads",
+    "sheets"
+  ]
+}

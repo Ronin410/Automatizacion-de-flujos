@@ -1,0 +1,269 @@
+{
+  "name": "[BASIC] Recordatorio de Cita (Sheets → Email)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "id": "2f2a2a20-0002-4000-8000-000000000001",
+      "name": "Cron - Revisar cada 3h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -20,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEETS_DOCUMENT_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Citas",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "2f2a2a20-0002-4000-8000-000000000002",
+      "name": "Leer Citas",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        200,
+        260
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets - Cliente"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.Estado }}",
+              "rightValue": "Recordado",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ DateTime.fromISO($json.FechaCita).diffNow('hours').hours }}",
+              "rightValue": 24,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            },
+            {
+              "id": "c3",
+              "leftValue": "={{ DateTime.fromISO($json.FechaCita).diffNow('hours').hours }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "2f2a2a20-0002-4000-8000-000000000003",
+      "name": "Filtrar Citas Próximas (24h)",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        420,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.ALERTS_FROM_EMAIL }}",
+        "toEmail": "={{ $json.Email }}",
+        "subject": "Recordatorio: tu cita es mañana",
+        "emailFormat": "text",
+        "text": "=Hola {{ $json.Nombre }},\n\nTe recordamos tu cita programada para el {{ $json.FechaCita }}.\n\nSi necesitas reprogramar, responde este correo.\n\nSaludos.",
+        "options": {}
+      },
+      "id": "2f2a2a20-0002-4000-8000-000000000004",
+      "name": "Enviar Recordatorio (Email)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        640,
+        160
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_ME",
+          "name": "SMTP - Alertas"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GOOGLE_SHEETS_DOCUMENT_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Citas",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "row_number"
+          ],
+          "value": {
+            "row_number": "={{ $json.row_number }}",
+            "Estado": "Recordado"
+          }
+        },
+        "options": {}
+      },
+      "id": "2f2a2a20-0002-4000-8000-000000000005",
+      "name": "Marcar como Recordado",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        860,
+        160
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Sheets - Cliente"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.ALERTS_FROM_EMAIL }}",
+        "toEmail": "={{ $env.ALERTS_TO_EMAIL }}",
+        "subject": "⚠️ Fallo al enviar recordatorio de cita",
+        "emailFormat": "text",
+        "text": "=No se pudo enviar el recordatorio para:\nNombre: {{ $json.Nombre }}\nEmail: {{ $json.Email }}\nFecha: {{ $json.FechaCita }}\n\nError: {{ $json.error?.message || 'Desconocido' }}\n\nAcción sugerida: contactar manualmente al cliente.",
+        "options": {}
+      },
+      "id": "2f2a2a20-0002-4000-8000-000000000006",
+      "name": "Notificar Fallo (Email)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        860,
+        320
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_ME",
+          "name": "SMTP - Alertas"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron - Revisar cada 3h": {
+      "main": [
+        [
+          {
+            "node": "Leer Citas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Citas": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Citas Próximas (24h)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Citas Próximas (24h)": {
+      "main": [
+        [
+          {
+            "node": "Enviar Recordatorio (Email)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Recordatorio (Email)": {
+      "main": [
+        [
+          {
+            "node": "Marcar como Recordado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Fallo (Email)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "",
+  "meta": {
+    "templateNote": "Flujo de ejemplo nivel Basic — recordatorio de cita 24h antes, leyendo de una hoja 'Citas' con columnas Nombre, Email, FechaCita, Estado."
+  },
+  "tags": [
+    "basic",
+    "recordatorios",
+    "sheets",
+    "email"
+  ]
+}
