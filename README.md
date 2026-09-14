@@ -28,6 +28,9 @@ lead) y diagrama de infraestructura, en Mermaid (se ven directo en GitHub). Vers
 sistema completo (con pestañas Basic/Standard/Premium):
 [Anatomía del Pipeline](https://claude.ai/code/artifact/7fbda57d-0aee-4dc9-82d1-dc943924b19c).
 
+Guía de infraestructura para varios clientes a la vez (qué compartir/aislar entre un cliente Basic,
+uno Standard y uno Premium): `docs/INFRAESTRUCTURA-MULTICLIENTE.md` en la rama `nivel-premium`.
+
 ## Stack
 
 - **Orquestador principal:** n8n (self-hosted en Railway/Render, o n8n cloud)
