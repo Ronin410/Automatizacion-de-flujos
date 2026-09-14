@@ -1,0 +1,157 @@
+{
+  "name": "[STANDARD] 3 - Manejo de Errores Centralizado",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "error-alert-standard",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "5c5c5c50-0005-4000-8000-000000000001",
+      "name": "Webhook - Alerta de Error",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        260
+      ],
+      "webhookId": "error-alert-standard"
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d1",
+              "name": "mensaje_formateado",
+              "type": "string",
+              "value": "=⚠️ *Error en flujo automatizado*\nFlujo: {{ $json.body.flujo }}\nNodo: {{ $json.body.nodo }}\nError: {{ $json.body.error }}\nDatos: {{ JSON.stringify($json.body.datos) }}\nHora: {{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5c5c5c50-0005-4000-8000-000000000002",
+      "name": "Formatear Alerta",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"text\": $json.mensaje_formateado } }}",
+        "options": {}
+      },
+      "id": "5c5c5c50-0005-4000-8000-000000000003",
+      "name": "Notificar en Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        420,
+        260
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.WHATSAPP_PHONE_ID }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"messaging_product\": \"whatsapp\", \"to\": $env.WHATSAPP_OPERATOR_NUMBER, \"type\": \"text\", \"text\": { \"body\": $('Formatear Alerta').item.json.mensaje_formateado } } }}",
+        "options": {}
+      },
+      "id": "5c5c5c50-0005-4000-8000-000000000004",
+      "name": "Notificar por WhatsApp (respaldo)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        360
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "WhatsApp Cloud API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Alerta de Error": {
+      "main": [
+        [
+          {
+            "node": "Formatear Alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatear Alerta": {
+      "main": [
+        [
+          {
+            "node": "Notificar en Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar en Slack": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Notificar por WhatsApp (respaldo)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "",
+  "meta": {
+    "templateNote": "Flujo 3 de 3 del nivel Standard — manejo de errores centralizado. Los Flujos 1 y 2 le reportan cualquier fallo (tras agotar sus reintentos) llamando a su webhook interno. Notifica primero por Slack; si Slack falla, respalda por WhatsApp al operador."
+  },
+  "tags": [
+    "standard",
+    "errores",
+    "operaciones"
+  ]
+}

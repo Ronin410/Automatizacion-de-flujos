@@ -1,0 +1,166 @@
+{
+  "name": "[STANDARD] 2 - Notificación WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-notify-standard",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "4b4b4b40-0004-4000-8000-000000000001",
+      "name": "Webhook - Interno (desde Flujo 1)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        260
+      ],
+      "webhookId": "whatsapp-notify-standard"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.WHATSAPP_PHONE_ID }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"messaging_product\": \"whatsapp\", \"to\": $env.WHATSAPP_OPERATOR_NUMBER, \"type\": \"text\", \"text\": { \"body\": \"Nuevo lead: \" + $json.body.nombre + \" (\" + $json.body.email + \"). Empresa: \" + ($json.body.empresa || 'N/A') + \". Mensaje: \" + $json.body.mensaje } } }}",
+        "options": {}
+      },
+      "id": "4b4b4b40-0004-4000-8000-000000000002",
+      "name": "Enviar WhatsApp al Operador",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        260
+      ],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "WhatsApp Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.WHATSAPP_PHONE_ID }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.WHATSAPP_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"messaging_product\": \"whatsapp\", \"to\": $('Webhook - Interno (desde Flujo 1)').item.json.body.telefono, \"type\": \"text\", \"text\": { \"body\": \"Hola \" + $('Webhook - Interno (desde Flujo 1)').item.json.body.nombre + \", gracias por contactarnos. En breve un asesor te escribirá.\" } } }}",
+        "options": {}
+      },
+      "id": "4b4b4b40-0004-4000-8000-000000000003",
+      "name": "Confirmar al Lead (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        420,
+        160
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "WhatsApp Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_INTERNAL_URL }}/webhook/error-alert-standard",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"flujo\": \"2 - Notificación WhatsApp\", \"nodo\": \"Enviar WhatsApp al Operador\", \"error\": $json.error?.message || 'Desconocido', \"datos\": $('Webhook - Interno (desde Flujo 1)').item.json.body } }}",
+        "options": {}
+      },
+      "id": "4b4b4b40-0004-4000-8000-000000000004",
+      "name": "Reportar Error a Flujo 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        420,
+        360
+      ],
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook - Interno (desde Flujo 1)": {
+      "main": [
+        [
+          {
+            "node": "Enviar WhatsApp al Operador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar WhatsApp al Operador": {
+      "main": [
+        [
+          {
+            "node": "Confirmar al Lead (WhatsApp)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reportar Error a Flujo 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "",
+  "meta": {
+    "templateNote": "Flujo 2 de 3 del nivel Standard. Lo dispara el Flujo 1 vía webhook interno. Usa WhatsApp Business Cloud API — requiere WHATSAPP_TOKEN, WHATSAPP_PHONE_ID y WHATSAPP_OPERATOR_NUMBER configurados."
+  },
+  "tags": [
+    "standard",
+    "whatsapp",
+    "notificaciones"
+  ]
+}
