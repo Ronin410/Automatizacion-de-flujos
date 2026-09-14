@@ -21,6 +21,13 @@ Cada rama es un paquete completo, listo para usar en cuanto llegue un pedido de 
 **Esta rama (`nivel-standard`) trae Basic + Standard.** Al llegar un pedido Standard, haz checkout
 de esta rama (o mergea/cherry-pickea `flows/standard/` a donde trabajes) y sigue `flows/standard/README.md`.
 
+## 🗺️ Diagramas
+
+`docs/DIAGRAMAS.md` — diagrama de flujo (nodo por nodo), diagrama de proceso (ciclo de vida del
+lead) y diagrama de infraestructura, en Mermaid (se ven directo en GitHub). Versión interactiva del
+sistema completo (con pestañas Basic/Standard/Premium):
+[Anatomía del Pipeline](https://claude.ai/code/artifact/7fbda57d-0aee-4dc9-82d1-dc943924b19c).
+
 ## Stack
 
 - **Orquestador principal:** n8n (self-hosted en Railway/Render, o n8n cloud)
@@ -42,6 +49,8 @@ de esta rama (o mergea/cherry-pickea `flows/standard/` a donde trabajes) y sigue
 │   ├── docs-basico.md    # plantilla de documentación para el cliente
 │   └── test-cases.md     # plantilla de casos de prueba (Standard+)
 ├── db/                    # 🚧 pendiente — esquemas de base de datos (Premium)
+├── docs/
+│   └── DIAGRAMAS.md      # diagramas de flujo, proceso e infraestructura (Mermaid)
 ├── Dockerfile / docker-compose.yml / INSTRUCCIONES_LOCAL.md
 ├── .env.example
 └── README.md
