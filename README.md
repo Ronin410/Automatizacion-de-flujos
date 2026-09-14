@@ -28,6 +28,10 @@ vida del lead) y diagrama de infraestructura (Docker + servicios externos), en M
 directo en GitHub). Versión interactiva con pestañas:
 [Anatomía del Pipeline](https://claude.ai/code/artifact/7fbda57d-0aee-4dc9-82d1-dc943924b19c).
 
+`docs/INFRAESTRUCTURA-MULTICLIENTE.md` — qué se comparte y qué no cuando tienes varios clientes
+reales a la vez (uno Basic, uno Standard, uno Premium): modelo recomendado, checklist al llegar un
+cliente nuevo, costos aproximados.
+
 ## Stack
 
 - **Orquestador principal:** n8n (self-hosted en Railway/Render, o n8n cloud)
@@ -53,7 +57,8 @@ directo en GitHub). Versión interactiva con pestañas:
 │   ├── schema.sql         # esquema PostgreSQL (leads, seguimiento, error_log)
 │   └── README.md
 ├── docs/
-│   └── DIAGRAMAS.md      # diagramas de flujo, proceso e infraestructura (Mermaid)
+│   ├── DIAGRAMAS.md      # diagramas de flujo, proceso e infraestructura (Mermaid)
+│   └── INFRAESTRUCTURA-MULTICLIENTE.md  # qué compartir/aislar entre clientes reales
 ├── Dockerfile / docker-compose.yml / INSTRUCCIONES_LOCAL.md
 ├── .env.example
 └── README.md
