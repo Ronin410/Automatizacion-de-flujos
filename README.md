@@ -16,6 +16,13 @@ armarlo desde cero.
 - **Base de datos ligera:** Google Sheets (Basic/Standard) o PostgreSQL/Airtable (Premium)
 - **Notificaciones:** WhatsApp Business API, email (SMTP/Resend), Slack
 
+## 🗺️ Diagramas
+
+`docs/DIAGRAMAS.md` — diagrama de flujo (nodo por nodo), diagrama de proceso (ciclo de vida del
+lead) y diagrama de infraestructura, en Mermaid (se ven directo en GitHub). Versión interactiva del
+sistema completo (con pestañas Basic/Standard/Premium):
+[Anatomía del Pipeline](https://claude.ai/code/artifact/7fbda57d-0aee-4dc9-82d1-dc943924b19c).
+
 ## Estructura del repositorio
 
 ```
@@ -29,6 +36,8 @@ armarlo desde cero.
 │   ├── docs-basico.md    # plantilla de documentación para el cliente
 │   └── test-cases.md     # plantilla de casos de prueba (Standard+)
 ├── db/                    # 🚧 pendiente — esquemas de base de datos (Premium)
+├── docs/
+│   └── DIAGRAMAS.md      # diagramas de flujo, proceso e infraestructura (Mermaid)
 ├── .env.example
 └── README.md
 ```
