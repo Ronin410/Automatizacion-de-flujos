@@ -21,6 +21,13 @@ Cada rama es un paquete completo, listo para usar en cuanto llegue un pedido de 
 **Esta rama (`nivel-premium`) trae el paquete completo: Basic + Standard + Premium.** Al llegar un
 pedido Premium, haz checkout de esta rama y sigue `flows/premium/README.md`.
 
+## 🗺️ Diagramas
+
+`docs/DIAGRAMAS.md` — diagrama de flujo (nodo por nodo, por nivel), diagrama de proceso (ciclo de
+vida del lead) y diagrama de infraestructura (Docker + servicios externos), en Mermaid (se ven
+directo en GitHub). Versión interactiva con pestañas:
+[Anatomía del Pipeline](https://claude.ai/code/artifact/7fbda57d-0aee-4dc9-82d1-dc943924b19c).
+
 ## Stack
 
 - **Orquestador principal:** n8n (self-hosted en Railway/Render, o n8n cloud)
@@ -45,6 +52,8 @@ pedido Premium, haz checkout de esta rama y sigue `flows/premium/README.md`.
 ├── db/
 │   ├── schema.sql         # esquema PostgreSQL (leads, seguimiento, error_log)
 │   └── README.md
+├── docs/
+│   └── DIAGRAMAS.md      # diagramas de flujo, proceso e infraestructura (Mermaid)
 ├── Dockerfile / docker-compose.yml / INSTRUCCIONES_LOCAL.md
 ├── .env.example
 └── README.md
